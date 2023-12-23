@@ -1,0 +1,54 @@
+service: aws-ses-email-sender
+frameworkVersion: '3'
+
+plugins:
+  - serverless-plugin-typescript
+
+package:
+  patterns:
+    - '!node_modules/**'
+    - 'node_modules/zod/**'
+    - 'node_modules/parse-multipart/**'
+
+provider:
+  name: aws
+  runtime: nodejs18.x
+  region: ap-southeast-1
+  apiGateway:
+    binaryMediaTypes:
+      - 'multipart/form-data'
+  iam:
+    role:
+      statements:
+        - Effect: Allow
+          Action: 'ses:*'
+          Resource: '*'
+        - Effect: Allow
+          Action:
+            - 's3:PutObject'
+            - 's3:PutObjectAcl'
+          Resource: '*'
+
+resources:
+  Resources:
+    AWSImageUploadBucket:
+      Type: AWS::S3::Bucket
+      Properties:
+        BucketName: aws-image-upload-s3-bucket
+        PublicAccessBlockConfiguration:
+          BlockPublicAcls: false
+        OwnershipControls:
+          Rules:
+            - ObjectOwnership: ObjectWriter
+
+functions:
+  sendEmail:
+    handler: src/send-email.handler
+    events:
+      - http: POST /send-email
+  uploadImage:
+    handler: src/upload-image.handler
+    events:
+      - http: POST /upload-image
+    environment:
+      BUCKET_NAME: aws-image-upload-s3-bucket
